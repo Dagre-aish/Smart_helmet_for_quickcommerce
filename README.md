@@ -21,7 +21,7 @@ The code uploads a Firebase record about once per second and keeps printing JSON
 2. Open **Build → Realtime Database** and create a database. Copy its exact database URL.
 3. Open **Build → Authentication → Sign-in method** and enable **Anonymous**.
 4. In **Project settings → General**, register a Web app if needed. Copy the `apiKey`, `authDomain`, `projectId`, `appId`, and database URL.
-5. The Firebase API key and Realtime Database URL are preconfigured in the ESP32 sketch. Replace only `YOUR_PHONE_HOTSPOT_NAME` and `YOUR_PHONE_HOTSPOT_PASSWORD` with your 2.4 GHz hotspot credentials.
+5. The Firebase API key and Realtime Database URL are preconfigured in the ESP32 sketch. Confirm `WIFI_SSID` and `WIFI_PASSWORD` match the device 2.4 GHz network, and keep personal hotspot credentials private.
 6. The Firebase web config in `portal/index.html` is preconfigured for this project. Enable Anonymous sign-in and publish the Realtime Database rules before testing.
 
 Firebase database URLs may end in `firebasedatabase.app` rather than `firebaseio.com`; use the exact URL Firebase shows you.
@@ -45,7 +45,7 @@ Publish the rules. This is suitable only for a short prototype: anonymous sign-i
 2. Install ESP32 board support from Boards Manager (Espressif Systems).
 3. Install **ArduinoJson** by Benoit Blanchon from Library Manager.
 4. Select your ESP32 board and its USB COM port.
-5. Edit the four placeholders listed in section A.
+5. Confirm the Firebase config and device Wi-Fi credentials are correct.
 6. Upload `smart_helmet_firebase.ino`.
 7. Open Serial Monitor at **115200 baud**. Confirm Wi-Fi and Firebase messages, then check that JSON values continue printing.
 8. In Firebase Realtime Database, look under `riders/RIDER_001`.
@@ -81,3 +81,7 @@ The portal uses Firebase's browser SDK and needs to be served over HTTP (not ope
 ## Deploy the dashboard on GitHub Pages
 
 The `portal` folder is published automatically by `.github/workflows/pages.yml` whenever changes are pushed to `main`. After the first successful run, open the repository's **Settings → Pages** to find the site URL. The dashboard needs Anonymous sign-in enabled and readable Realtime Database rules to connect.
+
+## Walkie-talkie firmware compatibility
+
+Both helmet sketches use the same Firebase project, rider ID (`RIDER_001`), and rider telemetry fields, so the dashboard can display either sketch without changing its sensor or Firebase code. The separate walkie-talkie project uses `audio_bridge.py` to carry audio over a local WebSocket connection; audio is not stored in Realtime Database. The walkie-talkie firmware currently reports audio connection state only to Serial, so the dashboard marks audio status as unavailable while still showing helmet, alcohol, buzzer, ban, and timing data.
