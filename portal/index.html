@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Smart Helmet | Rider Safety Dashboard</title>
+  <style>
+    :root { color-scheme: dark; --bg:#0b1020; --panel:#141c30; --line:#283550; --text:#eef3ff; --muted:#9eacc8; --green:#36d399; --red:#fb7185; --amber:#fbbf24; --blue:#7aa2ff; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif; background:radial-gradient(ellipse at top,#182647 0,#0b1020 55%); color:var(--text); min-height:100vh; }
+    main { max-width:1100px; margin:auto; padding:32px 18px 50px; }
+    header { display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap; margin-bottom:26px; }
+    .eyebrow { color:var(--blue); font-size:12px; letter-spacing:.16em; font-weight:800; text-transform:uppercase; }
+    h1 { margin:8px 0 5px; font-size:clamp(26px,4vw,38px); }
+    .sub { color:var(--muted); margin:0; }
+    .connection { display:flex; align-items:center; gap:8px; padding:9px 12px; border:1px solid var(--line); background:#111a2b; border-radius:999px; font-size:13px; }
+    .dot { width:8px; height:8px; background:var(--amber); border-radius:50%; }
+    .grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
+    .card { background:linear-gradient(145deg,rgba(25,35,57,.96),rgba(17,25,42,.96)); border:1px solid var(--line); border-radius:18px; padding:20px; box-shadow:0 14px 36px #0002; min-width:0; }
+    .wide { grid-column:span 2; }
+    .label { color:var(--muted); font-size:13px; margin-bottom:13px; }
+    .value { font-size:clamp(22px,3vw,30px); font-weight:750; letter-spacing:-.03em; overflow-wrap:anywhere; }
+    .pill { display:inline-flex; align-items:center; gap:7px; border-radius:999px; padding:7px 10px; margin-top:12px; font-size:12px; font-weight:750; background:#28334a; color:var(--muted); }
+    .pill.good { color:var(--green); background:#0b352e; }
+    .pill.bad { color:var(--red); background:#421e2b; }
+    .pill.warn { color:var(--amber); background:#3e3114; }
+    .bar { height:8px; border-radius:99px; background:#27334a; overflow:hidden; margin-top:14px; }
+    .fill { height:100%; width:0; background:var(--blue); border-radius:99px; transition:width .3s; }
+    .details { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; margin-top:18px; }
+    .small-label { color:var(--muted); font-size:12px; margin-bottom:5px; }
+    .small-value { font-weight:700; }
+    .note { color:var(--muted); font-size:12px; line-height:1.6; margin-top:22px; }
+    .error { display:none; padding:12px 14px; border:1px solid #7f1d1d; color:#fecaca; background:#35151b; border-radius:12px; margin-bottom:18px; }
+    @media(max-width:760px) { .grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .wide { grid-column:span 2; } }
+    @media(max-width:460px) { main {padding:22px 12px;} .grid {grid-template-columns:1fr;} .wide {grid-column:span 1;} .details {grid-template-columns:1fr;} }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <div class="eyebrow">IoT Road Safety System</div>
+      <h1>Smart Helmet Dashboard</h1>
+      <p class="sub">Live rider monitoring · <strong id="riderTitle">RIDER_001</strong></p>
+    </div>
+    <div class="connection"><span class="dot" id="connectionDot"></span><span id="connectionText">Connecting to Firebase…</span></div>
+  </header>
+
+  <div class="error" id="errorBox"></div>
+
+  <section class="grid">
+    <article class="card">
+      <div class="label">Helmet status</div>
+      <div class="value" id="helmetValue">Waiting…</div>
+      <span class="pill" id="helmetPill">NO DATA</span>
+    </article>
+    <article class="card">
+      <div class="label">Alcohol sensor</div>
+      <div class="value" id="alcoholValue">—</div>
+      <span class="pill" id="alcoholPill">NO DATA</span>
+    </article>
+    <article class="card">
+      <div class="label">Rider status</div>
+      <div class="value" id="riderStatus">Waiting…</div>
+      <span class="pill" id="riderPill">NO DATA</span>
+    </article>
+    <article class="card wide">
+      <div class="label">Helmet missing duration</div>
+      <div class="value"><span id="missingSeconds">0</span><span style="font-size:15px;color:var(--muted)"> seconds</span></div>
+      <div class="bar"><div class="fill" id="warningBar"></div></div>
+      <div class="details">
+        <div><div class="small-label">Warning begins</div><div class="small-value">After 20 seconds</div></div>
+        <div><div class="small-label">Buzzer</div><div class="small-value" id="buzzerValue">—</div></div>
+      </div>
+    </article>
+    <article class="card">
+      <div class="label">Ban countdown</div>
+      <div class="value" id="banCountdown">00:00</div>
+      <span class="pill" id="banPill">NOT BANNED</span>
+      <div class="note" style="margin-top:12px">Your current sketch starts the 2-minute ban timer after the 20-second helmet warning.</div>
+    </article>
+    <article class="card">
+      <div class="label">Raw MQ-3 reading</div>
+      <div class="value" id="rawValue">—</div>
+      <div class="bar"><div class="fill" id="alcoholBar"></div></div>
+      <div class="note">Configured threshold: <span id="thresholdText">1000</span> ADC counts. Calibrate this value with your sensor before relying on it.</div>
+    </article>
+    <article class="card">
+      <div class="label">Last device update</div>
+      <div class="value" style="font-size:21px" id="lastUpdate">Waiting…</div>
+      <div class="note">The dashboard updates automatically when Firebase receives new sensor data.</div>
+    </article>
+  </section>
+
+  <p class="note">Prototype only: sensor readings and software bans are not certified safety controls. Do not use this dashboard alone to make real-world enforcement decisions. Secure your Firebase rules before deploying to actual riders.</p>
+</main>
+
+<script type="module">
+  // Replace these values with the Web app config from Firebase Console > Project settings.
+  const firebaseConfig = {
+    apiKey: "AIzaSyCP5DJHNgHqYlhZ6WG2nqEjkSZR8i5Vd2c",
+    authDomain: "helmet-project-5b2b6.firebaseapp.com",
+    databaseURL: "https://helmet-project-5b2b6-default-rtdb.firebaseio.com",
+    projectId: "helmet-project-5b2b6",
+    storageBucket: "helmet-project-5b2b6.firebasestorage.app",
+    messagingSenderId: "937161768358",
+    appId: "1:937161768358:web:1c7645187ef04d5541a367",
+    measurementId: "G-NYNBP96WX8"
+  };
+
+  const riderId = "RIDER_001";
+  const threshold = 1000;
+  document.getElementById("thresholdText").textContent = threshold;
+
+  const errorBox = document.getElementById("errorBox");
+  const connectionText = document.getElementById("connectionText");
+  const connectionDot = document.getElementById("connectionDot");
+
+  function showError(message) {
+    errorBox.style.display = "block";
+    errorBox.textContent = message;
+    connectionText.textContent = "Setup needed";
+    connectionDot.style.background = "var(--red)";
+  }
+
+  if (firebaseConfig.apiKey.startsWith("YOUR_") ||
+      firebaseConfig.databaseURL.includes("YOUR_PROJECT_ID")) {
+    showError("Add your Firebase web config in index.html, then reload this page.");
+  } else {
+    try {
+      const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js");
+      const { getAuth, signInAnonymously } = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js");
+      const { getDatabase, ref, onValue } = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js");
+
+      const app = initializeApp(firebaseConfig);
+      const auth = getAuth(app);
+      const db = getDatabase(app);
+
+      await signInAnonymously(auth);
+      connectionText.textContent = "Connected · waiting for rider";
+      connectionDot.style.background = "var(--green)";
+
+      onValue(ref(db, `riders/${riderId}`), snapshot => {
+        const d = snapshot.val();
+        if (!d) {
+          connectionText.textContent = "Connected · no rider data";
+          return;
+        }
+        errorBox.style.display = "none";
+        connectionText.textContent = "Live · Firebase connected";
+        connectionDot.style.background = "var(--green)";
+        document.getElementById("riderTitle").textContent = d.riderId || riderId;
+
+        document.getElementById("helmetValue").textContent = d.helmet ? "Worn" : "Not worn";
+        setPill("helmetPill", d.helmet ? "HELMET DETECTED" : "HELMET MISSING", d.helmet ? "good" : "bad");
+        document.getElementById("alcoholValue").textContent = d.alcohol ? "Detected" : "Not detected";
+        setPill("alcoholPill", d.alcohol ? "ALERT" : "CLEAR", d.alcohol ? "bad" : "good");
+        document.getElementById("riderStatus").textContent = d.banned ? "Banned" : (d.buzzer ? "Alert" : "Normal");
+        setPill("riderPill", d.banned ? "BAN ACTIVE" : (d.buzzer ? "CHECK RIDER" : "NORMAL"), d.banned || d.buzzer ? "bad" : "good");
+        document.getElementById("missingSeconds").textContent = Number(d.helmetMissingSeconds || 0);
+        document.getElementById("warningBar").style.width = `${Math.min(100, Number(d.helmetMissingSeconds || 0) / 20 * 100)}%`;
+        document.getElementById("buzzerValue").textContent = d.buzzer ? "ON" : "OFF";
+        document.getElementById("banCountdown").textContent = formatTime(Number(d.banRemainingSeconds || 0));
+        setPill("banPill", d.banned ? "BAN ACTIVE" : "NOT BANNED", d.banned ? "bad" : "good");
+        const raw = Number(d.alcoholValue || 0);
+        document.getElementById("rawValue").textContent = raw;
+        document.getElementById("alcoholBar").style.width = `${Math.min(100, raw / 4095 * 100)}%`;
+        document.getElementById("lastUpdate").textContent = d.updatedAt ? new Date(d.updatedAt).toLocaleTimeString() : "Just received";
+      }, error => showError("Database read failed: " + error.message));
+    } catch (e) {
+      showError("Firebase setup failed: " + e.message);
+    }
+  }
+
+  function setPill(id, text, cls) {
+    const el = document.getElementById(id);
+    el.textContent = text;
+    el.className = "pill " + cls;
+  }
+  function formatTime(seconds) {
+    const m = Math.floor(seconds / 60).toString().padStart(2, "0");
+    const s = (seconds % 60).toString().padStart(2, "0");
+    return `${m}:${s}`;
+  }
+</script>
+</body>
+</html>
